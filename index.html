@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="IIT Hack Image Compressor – compress images in-browser, preview, and download compressed files or ZIP." />
+  <meta name="keywords" content="image compressor, online image optimization, compress images, IIT Hack" />
+  <meta name="author" content="IIT Hack" />
+  <title>IIT Hack Image Compressor</title>
+  <link rel="icon" href="favicon.ico" type="image/x-icon" />
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #1f2026;
+      color: #eceff1;
+      font-family: 'Roboto', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 30px 20px;
+    }
+    .logo {
+      margin-bottom: 20px;
+    }
+    .logo img {
+      height: 60px;
+    }
+    .container {
+      max-width: 800px;
+      width: 100%;
+      background: #2c3e50;
+      border-radius: 12px;
+      padding: 30px;
+      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+    }
+    .drop-zone {
+      border: 2px dashed #7f8c8d;
+      border-radius: 8px;
+      padding: 30px;
+      text-align: center;
+      cursor: pointer;
+      color: #bdc3c7;
+      margin-bottom: 20px;
+    }
+    .drop-zone.hover {
+      background: #34495e;
+    }
+    .preview {
+      display: flex;
+      justify-content: space-between;
+      gap: 20px;
+      margin-top: 20px;
+    }
+    .preview img {
+      max-width: 100%;
+      height: auto;
+      border-radius: 8px;
+    }
+    .controls {
+      margin-top: 20px;
+    }
+    .slider {
+      width: 100%;
+      margin-top: 10px;
+    }
+    button {
+      margin-top: 20px;
+      padding: 10px 20px;
+      background: #3498db;
+      border: none;
+      color: white;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #2980b9;
+    }
+    .size-info {
+      margin-top: 10px;
+      font-size: 0.9rem;
+      color: #95a5a6;
+    }
+  </style>
+</head>
+<body>
+  <div class="logo">
+    <a href="https://iithack.com" target="_blank">
+      <img src="logo.png" alt="IIT Hack Logo">
+    </a>
+  </div>
+
+  <div class="container">
+    <div class="drop-zone" id="drop-zone">Drag & Drop Image Here or Click to Upload</div>
+    <input type="file" id="file-input" accept="image/*" hidden />
+
+    <div class="controls">
+      <label for="quality">JPEG Quality: <span id="quality-val">0.4</span></label>
+      <input type="range" id="quality" min="0.1" max="1" step="0.1" value="0.4" class="slider" />
+      <button id="compress-btn">Compress</button>
+    </div>
+
+    <div id="preview-section" style="display: none; flex-direction: column;">
+      <div class="preview">
+        <div>
+          <p>Original</p>
+          <img id="original-img" />
+          <div class="size-info" id="original-size"></div>
+        </div>
+        <div>
+          <p>Compressed</p>
+          <img id="compressed-img" />
+          <div class="size-info" id="compressed-size"></div>
+        </div>
+      </div>
+      <button id="download-btn">Download</button>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script>
+    const dropZone = document.getElementById('drop-zone');
+    const fileInput = document.getElementById('file-input');
+    const qualitySlider = document.getElementById('quality');
+    const qualityVal = document.getElementById('quality-val');
+    const originalImg = document.getElementById('original-img');
+    const compressedImg = document.getElementById('compressed-img');
+    const previewSection = document.getElementById('preview-section');
+    const originalSize = document.getElementById('original-size');
+    const compressedSize = document.getElementById('compressed-size');
+    const downloadBtn = document.getElementById('download-btn');
+    const compressBtn = document.getElementById('compress-btn');
+
+    let imageFile, compressedBlob;
+
+    dropZone.addEventListener('click', () => fileInput.click());
+    dropZone.addEventListener('dragover', e => {
+      e.preventDefault();
+      dropZone.classList.add('hover');
+    });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('hover'));
+    dropZone.addEventListener('drop', e => {
+      e.preventDefault();
+      dropZone.classList.remove('hover');
+      const file = e.dataTransfer.files[0];
+      handleFile(file);
+    });
+
+    fileInput.addEventListener('change', () => {
+      const file = fileInput.files[0];
+      handleFile(file);
+    });
+
+    qualitySlider.addEventListener('input', () => {
+      qualityVal.textContent = qualitySlider.value;
+    });
+
+    function handleFile(file) {
+      if (!file || !file.type.startsWith('image/')) return;
+      imageFile = file;
+      const reader = new FileReader();
+      reader.onload = e => {
+        originalImg.src = e.target.result;
+        originalSize.textContent = `Size: ${(file.size / 1024).toFixed(2)} KB`;
+        previewSection.style.display = 'flex';
+      };
+      reader.readAsDataURL(file);
+    }
+
+    compressBtn.addEventListener('click', () => {
+      if (!imageFile) return;
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+        canvas.toBlob(blob => {
+          compressedBlob = blob;
+          compressedImg.src = URL.createObjectURL(blob);
+          compressedSize.textContent = `Size: ${(blob.size / 1024).toFixed(2)} KB`;
+        }, 'image/jpeg', parseFloat(qualitySlider.value));
+      };
+      img.src = URL.createObjectURL(imageFile);
+    });
+
+    downloadBtn.addEventListener('click', () => {
+      if (!compressedBlob) return;
+      const zip = new JSZip();
+      zip.file('compressed.jpg', compressedBlob);
+      zip.generateAsync({ type: 'blob' }).then(content => {
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(content);
+        a.download = 'compressed.zip';
+        a.click();
+      });
+    });
+  </script>
+</body>
+</html>
